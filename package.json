@@ -33,6 +33,7 @@
     "format:wasm": "prettier --experimental-cli --write 'converter/wasm/**/*.js'",
     "lint": "eslint --cache .",
     "lint:format": "prettier --experimental-cli --cache --check .",
+    "prepublishOnly": "npm run build",
     "test": "npm-run-all --parallel tsc:check lint lint:format vitest:run",
     "tsc:check": "tsc",
     "vitest:run": "vitest run"
