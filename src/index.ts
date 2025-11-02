@@ -104,36 +104,31 @@ async function optimizeMP4Buffer(
     (typeof self !== 'undefined' &&
      typeof (self as any).importScripts === 'function');
 
-  if (inBrowser) {
-    // Use h264-mp4-encoder (WASM) for browser optimization
-    // Note: We use the WASM encoder instead of WebCodecs because Chrome's
-    // WebCodecs has a bug that generates incorrect video dimensions
-    const { encodeFramesWithWasmEncoder } = await import('./webcodecs.js');
+  // Use h264-mp4-encoder (WASM) for optimization in both browser and Node.js
+  // Note: We use the WASM encoder instead of WebCodecs because Chrome's
+  // WebCodecs has a bug that generates incorrect video dimensions
+  const { encodeFramesWithWasmEncoder } = await import('./webcodecs.js');
 
-    if (!frames || frames.length === 0) {
-      throw new Error(
-        'Browser optimization requires raw frames. ' +
-          'This is an internal error - please report this issue.',
-      );
-    }
-
-    // Convert frames to WASM encoder format
-    const wasmEncoderFrames = frames.map((frame) => ({
-      data: frame.data,
-      width: frame.width,
-      height: frame.height,
-      delay: frame.delay,
-    }));
-
-    // Encode frames with h264-mp4-encoder (WASM)
-    return encodeFramesWithWasmEncoder(wasmEncoderFrames);
-  } else {
-    // Use ffmpeg in Node.js
-    const { optimizeMP4 } = await import('./ffmpeg.js');
-    return optimizeMP4(
-      mp4Buffer instanceof Uint8Array ? Buffer.from(mp4Buffer) : mp4Buffer,
+  if (!frames || frames.length === 0) {
+    throw new Error(
+      'Optimization requires raw frames. ' +
+        'This is an internal error - please report this issue.',
     );
   }
+
+  // Convert frames to WASM encoder format
+  const wasmEncoderFrames = frames.map((frame) => ({
+    data: frame.data,
+    width: frame.width,
+    height: frame.height,
+    delay: frame.delay,
+  }));
+
+  // Encode frames with h264-mp4-encoder (WASM)
+  const result = await encodeFramesWithWasmEncoder(wasmEncoderFrames);
+
+  // Return Buffer in Node.js, Uint8Array in browser
+  return inBrowser ? result : Buffer.from(result);
 }
 
 /**

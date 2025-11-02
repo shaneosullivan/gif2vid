@@ -314,8 +314,15 @@ export async function encodeFramesWithWasmEncoder(
     HME = (globalScope as any).HME;
   } else {
     // Import dynamically for ES module builds
+    // Use Node.js version in Node.js, web version in browser
+    const isNodeJS = typeof window === 'undefined' && typeof self === 'undefined';
+    const encoderPath = isNodeJS
+      ? 'h264-mp4-encoder/embuild/dist/h264-mp4-encoder.node.js'
+      : 'h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js';
     // @ts-ignore - No type definitions available for h264-mp4-encoder
-    HME = await import('h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js');
+    const module = await import(encoderPath);
+    // Node.js version uses default export, web version exports directly
+    HME = isNodeJS ? module.default : module;
   }
 
   const encoder = await HME.createH264MP4Encoder();

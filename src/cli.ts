@@ -11,16 +11,9 @@
  */
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { printCompatInfo } from './ffmpeg.js';
 import { convertFile } from './index.js';
 
 const args = process.argv.slice(2);
-
-// Handle --compat flag
-if (args.includes('--compat')) {
-  await printCompatInfo();
-  process.exit(0);
-}
 
 // Handle --help flag
 if (args.length < 2 || args.includes('--help') || args.includes('-h')) {
@@ -38,21 +31,13 @@ if (args.length < 2 || args.includes('--help') || args.includes('-h')) {
   console.log('');
   console.log('Options:');
   console.log('  --fps <number>     Frames per second (default: 10)');
-  console.log(
-    '  --compat           Check compatibility and available features',
-  );
   console.log('  --help, -h         Show this help message');
   console.log('');
   console.log('Note:');
-  console.log(
-    '  Output is automatically optimized with the best available method:',
-  );
-  console.log('  - Node.js: Uses ffmpeg (if installed)');
-  console.log('  - Browser: Uses WebCodecs API (if supported)');
-  console.log('  - Fallback: WASM-based encoding (always works)');
-  console.log(
-    '  Use --compat to check which optimization methods are available.',
-  );
+  console.log('  Output uses h264-mp4-encoder (WASM-based H.264 encoding):');
+  console.log('  - Works in both Node.js and browsers');
+  console.log('  - No external dependencies required (ffmpeg not needed)');
+  console.log('  - Produces optimized H.264/MP4 output');
   process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
 }
 
