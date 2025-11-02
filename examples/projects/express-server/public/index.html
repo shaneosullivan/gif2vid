@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gif2vid - Express Server Example</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 3rem;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        color: #667eea;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        color: #666;
+      }
+
+      .badge {
+        display: inline-block;
+        background: #4caf50;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+      }
+
+      section {
+        margin-bottom: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        color: #333;
+        margin-bottom: 1rem;
+      }
+
+      .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+      }
+
+      input[type='file'] {
+        position: absolute;
+        left: -9999px;
+      }
+
+      label[for='gifFile'] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        border: 3px dashed #667eea;
+        border-radius: 12px;
+        background: #f8f9ff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        color: #667eea;
+        font-weight: 500;
+      }
+
+      label[for='gifFile']:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+      }
+
+      button {
+        width: 100%;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-top: 1rem;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #output {
+        background: #f5f5f5;
+        padding: 1.5rem;
+        border-radius: 12px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 0.9rem;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+      }
+
+      #videoContainer {
+        margin-top: 2rem;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .media-box {
+        text-align: center;
+      }
+
+      .media-box h3 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+        color: #667eea;
+      }
+
+      .media-box img,
+      .media-box video {
+        max-width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        background: #000;
+      }
+
+      @media (max-width: 768px) {
+        .comparison {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+      }
+
+      .download-btn {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        background: #4caf50;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: transform 0.2s;
+      }
+
+      .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+      }
+
+      .note {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+      }
+
+      .info {
+        background: #d1ecf1;
+        border-left: 4px solid #0dcaf0;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+      }
+
+      .progress {
+        width: 100%;
+        height: 4px;
+        background: #e0e0e0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        width: 0%;
+        transition: width 0.3s;
+        animation: shimmer 1.5s infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🎬 gif2vid</h1>
+        <p class="subtitle">Server-side conversion with Express.js</p>
+        <div class="badge">Server-side processing</div>
+      </header>
+
+      <div class="info">
+        <strong>🖥️ Server Processing:</strong> The GIF is uploaded to the
+        server where it's converted to MP4 using Node.js. The video is saved to
+        /tmp and a download link is provided.
+      </div>
+
+      <section>
+        <h2>Convert Your GIF</h2>
+        <div class="file-input-wrapper">
+          <input type="file" id="gifFile" accept=".gif" />
+          <label for="gifFile"> 📁 Select a GIF file: No file chosen </label>
+        </div>
+        <div id="progress" class="progress" style="display: none">
+          <div class="progress-bar"></div>
+        </div>
+        <p class="note">File is uploaded and converted on the server</p>
+      </section>
+
+      <section>
+        <h2>Quick Test</h2>
+        <button onclick="testExistingGif()">
+          🚀 Load & Convert test1.gif
+        </button>
+        <p class="note">Test with the server's sample GIF file</p>
+      </section>
+
+      <section>
+        <h2>Output</h2>
+        <div id="output">Ready to convert...</div>
+      </section>
+
+      <div id="videoContainer"></div>
+    </div>
+
+    <script>
+      const output = document.getElementById('output');
+      const videoContainer = document.getElementById('videoContainer');
+      const fileLabel = document.querySelector('label[for="gifFile"]');
+      const fileInput = document.getElementById('gifFile');
+      const progress = document.getElementById('progress');
+
+      let currentGifFile = null;
+
+      // Update label when file is selected
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        fileLabel.textContent = `📁 ${file.name}`;
+        await uploadAndConvert(file);
+      });
+
+      function log(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        output.textContent += `[${timestamp}] ${message}\n`;
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function displayComparison(gifFile, videoUrl, filename, stats) {
+        const gifUrl = URL.createObjectURL(gifFile);
+
+        videoContainer.innerHTML = `
+          <div class="comparison">
+            <div class="media-box">
+              <h3>Original GIF</h3>
+              <img src="${gifUrl}" alt="Original GIF">
+            </div>
+            <div class="media-box">
+              <h3>Converted MP4</h3>
+              <video controls autoplay loop>
+                <source src="${videoUrl}" type="video/mp4">
+              </video>
+              <br>
+              <a href="${videoUrl}" download="${filename}" class="download-btn">
+                ⬇️ Download MP4
+              </a>
+            </div>
+          </div>
+        `;
+      }
+
+      async function uploadAndConvert(file) {
+        output.textContent = '';
+        log(`Uploading ${file.name}...`);
+        progress.style.display = 'block';
+
+        currentGifFile = file;
+
+        const formData = new FormData();
+        formData.append('gif', file);
+
+        try {
+          const response = await fetch('/convert', {
+            method: 'POST',
+            body: formData,
+          });
+
+          progress.style.display = 'none';
+
+          if (!response.ok) {
+            const error = await response.json();
+            log(`✗ Error: ${error.message || error.error}`);
+            return;
+          }
+
+          const result = await response.json();
+
+          log(`✓ Success!`);
+          log(`  Server processing time: ${result.stats.duration}s`);
+          log(
+            `  Input: ${(result.stats.inputSize / 1024).toFixed(2)} KB -> Output: ${(result.stats.outputSize / 1024).toFixed(2)} KB`,
+          );
+          log(`  Video saved: ${result.filename}`);
+
+          displayComparison(
+            currentGifFile,
+            result.videoUrl,
+            result.filename,
+            result.stats,
+          );
+        } catch (error) {
+          progress.style.display = 'none';
+          log(`✗ Error: ${error.message}`);
+          console.error(error);
+        }
+      }
+
+      // Test with existing GIF
+      async function testExistingGif() {
+        output.textContent = '';
+        log('Loading test1.gif from server...');
+
+        try {
+          const response = await fetch('./test1.gif');
+          const blob = await response.blob();
+          const file = new File([blob], 'test1.gif', { type: 'image/gif' });
+
+          await uploadAndConvert(file);
+        } catch (error) {
+          log(`✗ Error loading test file: ${error.message}`);
+        }
+      }
+    </script>
+  </body>
+</html>

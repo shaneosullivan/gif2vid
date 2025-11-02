@@ -33,13 +33,18 @@ interface ImageData {
  * Get WASM module path for current environment
  */
 async function getWasmModulePath(): Promise<string> {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' && typeof self === 'undefined') {
     // Node.js environment - use node-specific build
     const { join } = await import('node:path');
     return join(import.meta.dirname, '../converter/wasm/gif2vid-node.js');
   } else {
-    // Browser environment - use web-specific build
-    const scriptUrl = new URL(import.meta.url);
+    // Browser or Web Worker environment - use web-specific build
+    // In Web Workers, use self.location.href, in main thread use import.meta.url
+    const baseUrl =
+      typeof self !== 'undefined' && typeof (self as any).importScripts === 'function'
+        ? self.location.href
+        : import.meta.url;
+    const scriptUrl = new URL(baseUrl);
     return new URL('../../converter/wasm/gif2vid-web.js', scriptUrl).href;
   }
 }
@@ -90,10 +95,19 @@ async function optimizeMP4Buffer(
     width: number;
   }>,
 ): Promise<Buffer | Uint8Array> {
-  const inBrowser = typeof window !== 'undefined';
+  // Detect browser environment (including Web Workers)
+  // - Main thread: has window
+  // - Web Worker: has self.importScripts (unique to workers)
+  // - Node.js: has neither
+  const inBrowser =
+    typeof window !== 'undefined' ||
+    (typeof self !== 'undefined' &&
+     typeof (self as any).importScripts === 'function');
 
   if (inBrowser) {
-    // Use WASM H.264 encoder in browser (replaces buggy WebCodecs)
+    // Use h264-mp4-encoder (WASM) for browser optimization
+    // Note: We use the WASM encoder instead of WebCodecs because Chrome's
+    // WebCodecs has a bug that generates incorrect video dimensions
     const { encodeFramesWithWasmEncoder } = await import('./webcodecs.js');
 
     if (!frames || frames.length === 0) {
@@ -103,8 +117,16 @@ async function optimizeMP4Buffer(
       );
     }
 
-    // Encode frames with WASM H.264 encoder
-    return encodeFramesWithWasmEncoder(frames);
+    // Convert frames to WASM encoder format
+    const wasmEncoderFrames = frames.map((frame) => ({
+      data: frame.data,
+      width: frame.width,
+      height: frame.height,
+      delay: frame.delay,
+    }));
+
+    // Encode frames with h264-mp4-encoder (WASM)
+    return encodeFramesWithWasmEncoder(wasmEncoderFrames);
   } else {
     // Use ffmpeg in Node.js
     const { optimizeMP4 } = await import('./ffmpeg.js');

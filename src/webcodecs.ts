@@ -17,10 +17,15 @@ export interface WasmEncoderInfo {
 }
 
 /**
- * Check if WebCodecs API is available in the browser
+ * Check if WebCodecs API is available in the browser (including Web Workers)
  */
 export function checkWebCodecs(): WebCodecsInfo {
-  if (typeof window === 'undefined') {
+  // Check if we're in Node.js (no window and no WorkerGlobalScope)
+  const isNodeJs =
+    typeof window === 'undefined' &&
+    typeof self === 'undefined';
+
+  if (isNodeJs) {
     return { available: false, error: 'Not in browser environment' };
   }
 
@@ -74,7 +79,12 @@ export async function encodeFramesWithWebCodecs(
   const evenHeight = Math.floor(height / 2) * 2;
 
   // Load WASM module for MP4 muxing
-  const scriptUrl = new URL(import.meta.url);
+  // In Web Workers, use self.location.href, in main thread use import.meta.url
+  const baseUrl =
+    typeof self !== 'undefined' && typeof (self as any).importScripts === 'function'
+      ? self.location.href
+      : import.meta.url;
+  const scriptUrl = new URL(baseUrl);
   const wasmUrl = new URL('../converter/wasm/gif2vid-web.js', scriptUrl).href;
   const wasmModule = await (await import(wasmUrl).then((m) => m.default))();
 
@@ -83,10 +93,11 @@ export async function encodeFramesWithWebCodecs(
     'number',
     'number',
   ]);
-  const setDecoderConfig = wasmModule.cwrap('set_decoder_config', 'number', [
-    'number',
-    'number',
-  ]);
+  // Note: setDecoderConfig is available but not used - we let the muxer build its own config
+  // const setDecoderConfig = wasmModule.cwrap('set_decoder_config', 'number', [
+  //   'number',
+  //   'number',
+  // ]);
   const addH264Frame = wasmModule.cwrap('add_h264_frame', 'number', [
     'number',
     'number',
@@ -104,7 +115,6 @@ export async function encodeFramesWithWebCodecs(
 
   try {
     return await new Promise((resolve, reject) => {
-      let frameIndex = 0;
       let processedFrames = 0;
 
       // Initialize VideoEncoder with H.264 compression settings
@@ -293,17 +303,21 @@ export async function encodeFramesWithWasmEncoder(
   const evenWidth = Math.floor(width / 2) * 2;
   const evenHeight = Math.floor(height / 2) * 2;
 
-  // Access h264-mp4-encoder from global window.HME (loaded as script tag)
-  // The library is loaded as a script tag in test-browser.html
-  if (typeof window === 'undefined' || !(window as any).HME) {
-    throw new Error(
-      'h264-mp4-encoder not loaded. ' +
-        'Make sure to include the script tag: ' +
-        '<script src="path/to/h264-mp4-encoder.web.js"></script>',
-    );
+  // Get h264-mp4-encoder from global scope (prepended to bundle) or import dynamically
+  // In standalone/worker builds, HME is available as window.HME or self.HME
+  // In ES module builds, we need to import it
+  let HME: any;
+  const globalScope = typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : null;
+
+  if (globalScope && (globalScope as any).HME) {
+    // Use prepended h264-mp4-encoder from standalone/worker bundle
+    HME = (globalScope as any).HME;
+  } else {
+    // Import dynamically for ES module builds
+    // @ts-ignore - No type definitions available for h264-mp4-encoder
+    HME = await import('h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js');
   }
 
-  const HME = (window as any).HME;
   const encoder = await HME.createH264MP4Encoder();
 
   try {

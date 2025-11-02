@@ -1,0 +1,21 @@
+{
+  "name": "gif2vid-nextjs-app",
+  "version": "1.0.0",
+  "description": "gif2vid Next.js app example",
+  "scripts": {
+    "dev": "next dev -p 3337",
+    "build": "next build",
+    "start": "next start -p 3337"
+  },
+  "dependencies": {
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "gif2vid": "file:../../.."
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "gif2vid-express-server",
+  "version": "1.0.0",
+  "description": "gif2vid Express server example",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "gif2vid": "file:../../.."
+  }
+}

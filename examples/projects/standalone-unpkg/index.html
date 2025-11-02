@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>gif2vid - unpkg.com Example</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 3rem;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        color: #667eea;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        color: #666;
+      }
+
+      .badge {
+        display: inline-block;
+        background: #4caf50;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+      }
+
+      section {
+        margin-bottom: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        color: #333;
+        margin-bottom: 1rem;
+      }
+
+      .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+      }
+
+      input[type='file'] {
+        position: absolute;
+        left: -9999px;
+      }
+
+      label[for='gifFile'] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        border: 3px dashed #667eea;
+        border-radius: 12px;
+        background: #f8f9ff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        color: #667eea;
+        font-weight: 500;
+      }
+
+      label[for='gifFile']:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+      }
+
+      button {
+        width: 100%;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-top: 1rem;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #output {
+        background: #f5f5f5;
+        padding: 1.5rem;
+        border-radius: 12px;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 0.9rem;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+      }
+
+      #videoContainer {
+        margin-top: 2rem;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .media-box {
+        text-align: center;
+      }
+
+      .media-box h3 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+        color: #667eea;
+      }
+
+      .media-box img,
+      .media-box video {
+        max-width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        background: #000;
+      }
+
+      .download-btn {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        background: #4caf50;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+
+      .download-btn:hover {
+        background: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+      }
+
+      @media (max-width: 768px) {
+        .comparison {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+      }
+
+      .note {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+      }
+
+      .info {
+        background: #d1ecf1;
+        border-left: 4px solid #0dcaf0;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🎬 gif2vid</h1>
+        <p class="subtitle">
+          Convert GIF animations to optimized MP4 videos in your browser
+        </p>
+        <div class="badge">Loaded from unpkg.com</div>
+      </header>
+
+      <div class="info">
+        <strong>📦 CDN Usage:</strong> This example loads gif2vid directly from
+        unpkg.com. No build step required! Just include the script tag and
+        start converting.
+      </div>
+
+      <section>
+        <h2>Convert Your GIF</h2>
+        <div class="file-input-wrapper">
+          <input type="file" id="gifFile" accept=".gif" />
+          <label for="gifFile"> 📁 Select a GIF file: No file chosen </label>
+        </div>
+        <p class="note">Converts GIF to MP4 using the gif2vid library</p>
+      </section>
+
+      <section>
+        <h2>Quick Test</h2>
+        <button onclick="testExistingGif()">
+          🚀 Load & Convert test1.gif
+        </button>
+        <p class="note">Test with the included sample GIF file</p>
+      </section>
+
+      <section>
+        <h2>Output</h2>
+        <div id="output">Ready to convert...</div>
+      </section>
+
+      <div id="videoContainer"></div>
+    </div>
+
+    <!-- Load gif2vid from local build for testing -->
+    <!-- In production, use: https://unpkg.com/gif2vid@latest/lib/browser/gif2vid.standalone.js -->
+    <script src="../../../lib/browser/gif2vid.standalone.js"></script>
+
+    <script>
+      const output = document.getElementById('output');
+      const videoContainer = document.getElementById('videoContainer');
+      const fileLabel = document.querySelector('label[for="gifFile"]');
+      const fileInput = document.getElementById('gifFile');
+
+      let currentGifBlob = null;
+      let currentGifFilename = 'converted.gif';
+
+      // Update label when file is selected
+      fileInput.addEventListener('change', (e) => {
+        const fileName = e.target.files[0]?.name || 'No file chosen';
+        fileLabel.textContent = `📁 ${fileName}`;
+      });
+
+      function log(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        output.textContent += `[${timestamp}] ${message}\n`;
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function displayComparison(gifBlob, mp4Blob, filename) {
+        const gifUrl = URL.createObjectURL(gifBlob);
+        const videoUrl = URL.createObjectURL(mp4Blob);
+        const mp4Filename = filename.replace(/\.gif$/i, '.mp4');
+
+        videoContainer.innerHTML = `
+          <div class="comparison">
+            <div class="media-box">
+              <h3>Original GIF</h3>
+              <img src="${gifUrl}" alt="Original GIF">
+            </div>
+            <div class="media-box">
+              <h3>Converted MP4</h3>
+              <video controls autoplay loop>
+                <source src="${videoUrl}" type="video/mp4">
+              </video>
+              <br>
+              <a href="${videoUrl}" download="${mp4Filename}" class="download-btn">
+                ⬇️ Download MP4
+              </a>
+            </div>
+          </div>
+        `;
+      }
+
+      async function convertGif(gifBuffer, filename) {
+        log(`Converting ${filename}...`);
+        const startTime = performance.now();
+
+        try {
+          const mp4Buffer = await window.gif2vid.convertGifBuffer(gifBuffer);
+          const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+
+          log(`✓ Success!`);
+          log(`  Input: ${filename} (${(gifBuffer.byteLength / 1024).toFixed(2)} KB)`);
+          log(`  Output: ${(mp4Buffer.byteLength / 1024).toFixed(2)} KB`);
+          log(`  Duration: ${duration}s`);
+
+          displayComparison(
+            currentGifBlob,
+            new Blob([mp4Buffer], { type: 'video/mp4' }),
+            filename,
+          );
+        } catch (error) {
+          log(`✗ Error: ${error.message}`);
+          console.error(error);
+        }
+      }
+
+      // Handle file input
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        output.textContent = '';
+        log(`Loading ${file.name}...`);
+
+        currentGifBlob = file;
+        currentGifFilename = file.name;
+
+        const arrayBuffer = await file.arrayBuffer();
+        await convertGif(new Uint8Array(arrayBuffer), file.name);
+      });
+
+      // Test with existing GIF
+      async function testExistingGif() {
+        output.textContent = '';
+        log('Loading test1.gif...');
+
+        try {
+          const response = await fetch('./test1.gif');
+          const arrayBuffer = await response.arrayBuffer();
+          currentGifBlob = new Blob([arrayBuffer], { type: 'image/gif' });
+          currentGifFilename = 'test1.gif';
+          await convertGif(new Uint8Array(arrayBuffer), 'test1.gif');
+        } catch (error) {
+          log(`✗ Error loading test file: ${error.message}`);
+        }
+      }
+    </script>
+  </body>
+</html>

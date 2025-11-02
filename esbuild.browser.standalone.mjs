@@ -131,6 +131,38 @@ await esbuild.build({
         });
       },
     },
+    {
+      name: 'replace-h264-encoder-import',
+      setup(build) {
+        // Intercept imports of h264-mp4-encoder and replace with stub
+        // that returns the globally available window.HME
+        // This prevents bundling h264-mp4-encoder twice (once prepended, once bundled)
+        build.onResolve({ filter: /h264-mp4-encoder/ }, (args) => {
+          return { path: args.path, namespace: 'h264-encoder-stub' };
+        });
+        build.onLoad({ filter: /.*/, namespace: 'h264-encoder-stub' }, () => {
+          return {
+            contents: `
+            // This stub replaces the dynamic import of h264-mp4-encoder
+            // The actual library is prepended to the standalone bundle and sets window.HME
+            // We need to access window.HME at runtime, not at bundle time
+            const getHME = () => {
+              if (typeof window !== 'undefined' && window.HME) {
+                return window.HME;
+              }
+              if (typeof self !== 'undefined' && self.HME) {
+                return self.HME;
+              }
+              throw new Error('HME not found - h264-mp4-encoder should be prepended to bundle');
+            };
+            export default getHME();
+            export const createH264MP4Encoder = getHME().createH264MP4Encoder;
+          `,
+            loader: 'js',
+          };
+        });
+      },
+    },
   ],
 });
 
