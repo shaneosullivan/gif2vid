@@ -6,8 +6,8 @@ This example shows how to use gif2vid in a Web Worker to keep the UI responsive 
 
 - ✅ Non-blocking UI (conversion in separate thread)
 - ✅ TypeScript Web Worker
-- ✅ Built with esbuild
-- ✅ Imports from GitHub
+- ✅ Pre-built worker bundle (no complex configuration needed)
+- ✅ Simple esbuild setup
 - ✅ Transferable objects for performance
 - ✅ Progress updates
 
@@ -19,47 +19,43 @@ This example shows how to use gif2vid in a Web Worker to keep the UI responsive 
    npm install
    ```
 
-2. Copy WASM files (required for dynamic imports):
-
-   ```bash
-   npm run copy-wasm
-   ```
-
-3. Build the worker:
+2. Build the worker:
 
    ```bash
    npm run build
    ```
 
-4. Start the server:
+3. Start the dev server:
 
    ```bash
-   ./startServer.sh
+   npm run dev
    ```
 
-   Or use npm:
+   Or use the start script:
 
    ```bash
    npm start
    ```
 
-5. Open http://localhost:3335 in your browser
+4. Open http://localhost:8081 in your browser
 
 ## How It Works
 
 ### 1. Worker (TypeScript)
 
-The worker imports gif2vid and handles conversion:
+The worker imports from the pre-built `gif2vid/worker` bundle:
 
 ```typescript
-import { convertGifBuffer } from 'gif2vid';
+import { convertGifBuffer } from 'gif2vid/worker';
 
 self.addEventListener('message', async (event) => {
   const { gifBuffer } = event.data;
   const mp4Buffer = await convertGifBuffer(new Uint8Array(gifBuffer));
-  self.postMessage({ mp4Buffer: mp4Buffer.buffer }, [mp4Buffer.buffer]);
+  self.postMessage({ mp4Buffer: mp4Buffer.buffer }, { transfer: [mp4Buffer.buffer] });
 });
 ```
+
+**Key Point**: Use `gif2vid/worker` instead of `gif2vid` - this pre-built bundle includes everything needed for Web Workers (h264-mp4-encoder, WASM modules, etc.)
 
 ### 2. Main Thread
 
@@ -76,11 +72,13 @@ worker.addEventListener('message', (event) => {
 
 ### 3. Build Process
 
-esbuild bundles the TypeScript worker with gif2vid:
+Just use esbuild to bundle your worker:
 
 ```bash
-esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js
+esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser
 ```
+
+That's it! No need to configure WASM file copying, h264-mp4-encoder prepending, or any other complex build steps.
 
 ## Benefits
 
@@ -88,25 +86,20 @@ esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js
 - **Better UX**: Can show progress, cancel operations
 - **Performance**: Transferable objects avoid copying large buffers
 - **Clean code**: Separation of concerns
+- **Simple setup**: Pre-built worker bundle eliminates configuration complexity
 
-## Notes
+## Why `gif2vid/worker`?
 
-- The worker is built as an ES module (`type: 'module'`)
-- Uses Transferable objects for better performance
-- gif2vid is imported as a local file reference to the parent project
-- WebCodecs is available in workers (Chrome/Edge)
+The `gif2vid/worker` export is a pre-built bundle specifically designed for Web Workers:
+
+- ✅ Includes h264-mp4-encoder for video optimization
+- ✅ Includes WASM modules for GIF decoding
+- ✅ Properly configured for Web Worker environment (uses `self` instead of `window`)
+- ✅ No build configuration needed on your end
 
 ## Local Development
 
 This example uses `"gif2vid": "file:../../.."` in package.json to reference the parent project. This means:
 - You must run `npm run build` in the root project first
-- The example uses the built files from the parent project's `lib/` and `converter/wasm/` folders
+- The example uses the built files from the parent project's `lib/` folder
 - Changes to the parent project require rebuilding before they appear in the example
-
-### WASM File Copying
-
-The WASM files need to be copied to the project root (`converter/wasm/`) because:
-- The bundled worker uses dynamic imports to load WASM modules at runtime
-- Relative paths in the worker resolve from the web server root, not node_modules
-- The `postinstall` script automatically copies these files after `npm install`
-- You can manually run `npm run copy-wasm` if needed

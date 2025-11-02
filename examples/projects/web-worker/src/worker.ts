@@ -1,7 +1,7 @@
 // Web Worker for gif2vid conversion
 // This runs in a separate thread to avoid blocking the main UI
 
-import { convertGifBuffer } from 'gif2vid';
+import { convertGifBuffer } from 'gif2vid/worker';
 
 // Listen for messages from the main thread
 self.addEventListener('message', async (event) => {

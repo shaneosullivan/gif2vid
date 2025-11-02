@@ -4,11 +4,9 @@
   "description": "gif2vid web worker example with TypeScript",
   "type": "module",
   "scripts": {
-    "build": "node build-worker.mjs",
+    "build": "esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser",
     "dev": "npm run build && python3 -m http.server 8081",
-    "start": "./startServer.sh",
-    "copy-wasm": "mkdir -p converter/wasm && cp node_modules/gif2vid/converter/wasm/* converter/wasm/",
-    "postinstall": "npm run copy-wasm"
+    "start": "./startServer.sh"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
