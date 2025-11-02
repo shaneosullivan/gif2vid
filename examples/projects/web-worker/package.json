@@ -4,7 +4,7 @@
   "description": "gif2vid web worker example with TypeScript",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser",
+    "build": "esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser --log-override:direct-eval=silent",
     "dev": "npm run build && python3 -m http.server 8081",
     "start": "./startServer.sh"
   },

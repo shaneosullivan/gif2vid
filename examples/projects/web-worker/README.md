@@ -75,10 +75,12 @@ worker.addEventListener('message', (event) => {
 Just use esbuild to bundle your worker:
 
 ```bash
-esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser
+esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser --log-override:direct-eval=silent
 ```
 
 That's it! No need to configure WASM file copying, h264-mp4-encoder prepending, or any other complex build steps.
+
+**Note**: The `--log-override:direct-eval=silent` flag suppresses a harmless warning about `eval()` usage in the h264-mp4-encoder library.
 
 ## Benefits
 
