@@ -13,7 +13,7 @@
  *    - Smaller file size, tree-shakeable
  *    - Usage: import { convertGifBuffer } from 'gif2vid'
  *
- * 2. **Standalone Build** (lib/browser/gif2vid.standalone.js) - THIS FILE
+ * 2. **Standalone Build** (lib/browser.js) - THIS FILE
  *    - For simple HTML pages with no build step
  *    - Single file with ALL dependencies bundled (including h264-mp4-encoder)
  *    - Larger file size, but zero external dependencies
@@ -334,7 +334,7 @@ ${moduleExposer}
 // ============================================================================
 // STEP 6: Write the final bundle and clean up
 // ============================================================================
-writeFileSync('lib/browser/gif2vid.standalone.js', standaloneBundle);
+writeFileSync('lib/browser.js', standaloneBundle);
 
 // Clean up the temporary bundle file
 try {
@@ -343,13 +343,13 @@ try {
 
 // Success! Print usage instructions
 const finalSize = (
-  readFileSync('lib/browser/gif2vid.standalone.js').length /
+  readFileSync('lib/browser.js').length /
   1024 /
   1024
 ).toFixed(2);
 
 console.log('✓ Standalone browser bundle created successfully');
-console.log('  Output: lib/browser/gif2vid.standalone.js');
+console.log('  Output: lib/browser.js');
 console.log(`  Size: ${finalSize} MB`);
 console.log('');
 console.log('  🎉 SINGLE FILE DEPLOYMENT!');
@@ -358,7 +358,7 @@ console.log(
 );
 console.log('');
 console.log('  Usage in HTML:');
-console.log('    <script src="lib/browser/gif2vid.standalone.js"></script>');
+console.log('    <script src="lib/browser.js"></script>');
 console.log('    <script>');
 console.log('      const { convertGifBuffer } = window.gif2vid;');
 console.log('      // Use convertGifBuffer, convertFile, or convertFrames');

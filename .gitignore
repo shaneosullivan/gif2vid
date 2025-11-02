@@ -41,3 +41,8 @@ temp/
 *.tmp
 
 .last_modified_timestamp
+
+# Next.js
+examples/projects/nextjs-app/.next/
+examples/projects/nextjs-app/next-env.d.ts
+TODO.md

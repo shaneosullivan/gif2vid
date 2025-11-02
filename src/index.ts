@@ -35,8 +35,16 @@ interface ImageData {
 async function getWasmModulePath(): Promise<string> {
   if (typeof window === 'undefined' && typeof self === 'undefined') {
     // Node.js environment - use node-specific build
-    const { join } = await import('node:path');
-    return join(import.meta.dirname, '../converter/wasm/gif2vid-node.js');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+
+    // Use import.meta.dirname if available (Node 20.11+), otherwise fall back to fileURLToPath
+    // This handles Next.js and other bundlers that may not support import.meta.dirname
+    const currentDir = import.meta.dirname
+      ? import.meta.dirname
+      : dirname(fileURLToPath(import.meta.url));
+
+    return join(currentDir, '../converter/wasm/gif2vid-node.js');
   } else {
     // Browser or Web Worker environment - use web-specific build
     // In Web Workers, use self.location.href, in main thread use import.meta.url
@@ -146,8 +154,18 @@ async function encodeFramesToMp4(
   fps: number = 10,
 ): Promise<Buffer | Uint8Array> {
   // Load WASM module
-  const wasmPath = await getWasmModulePath();
-  const createModule = await import(wasmPath).then((m) => m.default);
+  let createModule: any;
+
+  if (typeof window === 'undefined' && typeof self === 'undefined') {
+    // Node.js environment - use static import for bundling
+    const { createModule: nodeCreateModule } = await import('./wasm-node-loader.js');
+    createModule = nodeCreateModule;
+  } else {
+    // Browser - use dynamic import with path
+    const wasmPath = await getWasmModulePath();
+    createModule = await import(wasmPath).then((m) => m.default);
+  }
+
   const Module = (await createModule()) as WasmModule;
 
   // Initialize encoder
