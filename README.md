@@ -462,6 +462,194 @@ async function convertWithProgress(inputDir: string, outputDir: string) {
 await convertWithProgress('./input-gifs', './output-videos');
 ```
 
+### Using gif2vid in a Web Worker
+
+For production web applications, it's recommended to run gif2vid in a Web Worker to keep your UI responsive during conversion. This prevents the main thread from blocking while processing large GIF files.
+
+**Benefits of using a Web Worker:**
+- ✅ Non-blocking UI - your application stays responsive during conversion
+- ✅ Better user experience - no frozen screens or laggy interactions
+- ✅ Progress updates - send messages back to the main thread
+- ✅ Transferable objects - efficient memory handling
+
+**Worker Setup:**
+
+```typescript
+// worker.ts
+import { convertGifBuffer } from 'gif2vid/worker';
+
+self.addEventListener('message', async (event) => {
+  const { id, gifBuffer } = event.data;
+
+  try {
+    // Convert the GIF to MP4
+    const mp4Buffer = await convertGifBuffer(new Uint8Array(gifBuffer));
+
+    // Send the result back to the main thread
+    // Use transferable objects for better performance
+    self.postMessage(
+      {
+        id,
+        type: 'success',
+        mp4Buffer: mp4Buffer.buffer,
+      },
+      { transfer: [mp4Buffer.buffer] }
+    );
+  } catch (error) {
+    self.postMessage({
+      id,
+      type: 'error',
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+```
+
+**Main Thread Usage:**
+
+```typescript
+// main.ts
+const worker = new Worker('worker.js');
+
+worker.addEventListener('message', (event) => {
+  const { type, id, mp4Buffer, error } = event.data;
+
+  if (type === 'success') {
+    // Handle the converted video
+    const blob = new Blob([mp4Buffer], { type: 'video/mp4' });
+    const url = URL.createObjectURL(blob);
+    videoElement.src = url;
+  } else if (type === 'error') {
+    console.error('Conversion failed:', error);
+  }
+});
+
+// Send GIF to worker for conversion
+async function convertGif(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  worker.postMessage({
+    id: Date.now(),
+    gifBuffer: arrayBuffer,
+  }, { transfer: [arrayBuffer] });
+}
+```
+
+**Important Notes:**
+- Use `gif2vid/worker` import in your worker file (not the default `gif2vid` export)
+- Use transferable objects (`{ transfer: [buffer] }`) to avoid copying large buffers
+- The worker runs in a separate thread, so the conversion won't block your UI
+- See the [web-worker example](./examples/projects/web-worker) for a complete working implementation
+
+## Example Projects
+
+The `examples/projects/` directory contains four complete, production-ready example projects demonstrating different ways to use gif2vid:
+
+### 1. [standalone-unpkg](./examples/projects/standalone-unpkg) - Simplest Browser Usage
+
+**Best for:** Quick prototypes, demos, no-build-step projects
+
+Load gif2vid directly from CDN with a single `<script>` tag. Perfect for rapid prototyping.
+
+```html
+<script src="https://unpkg.com/gif2vid/lib/browser/gif2vid.standalone.js"></script>
+<script>
+  const mp4Buffer = await window.gif2vid.convertGifBuffer(gifBuffer);
+</script>
+```
+
+**Features:** Zero dependencies, works with just HTML, CDN-ready
+
+**Start:** `cd examples/projects/standalone-unpkg && ./startServer.sh`
+
+---
+
+### 2. [web-worker](./examples/projects/web-worker) - Non-Blocking Conversion
+
+**Best for:** Production web apps, smooth UI experience
+
+Runs gif2vid in a Web Worker to keep the main thread responsive. Essential for production applications.
+
+```typescript
+// worker.ts
+import { convertGifBuffer } from 'gif2vid/worker';
+
+self.addEventListener('message', async (event) => {
+  const mp4Buffer = await convertGifBuffer(event.data.gifBuffer);
+  self.postMessage({ mp4Buffer: mp4Buffer.buffer }, [mp4Buffer.buffer]);
+});
+```
+
+**Features:** Non-blocking UI, TypeScript, transferable objects, esbuild bundling
+
+**Start:** `cd examples/projects/web-worker && npm install && npm run build && ./startServer.sh`
+
+---
+
+### 3. [express-server](./examples/projects/express-server) - Server-Side API
+
+**Best for:** Backend services, API endpoints, Node.js applications
+
+A complete Express server with file upload, conversion, and download endpoints.
+
+```typescript
+import { convertGifBuffer } from 'gif2vid';
+
+app.post('/convert', upload.single('gif'), async (req, res) => {
+  const mp4Buffer = await convertGifBuffer(req.file.buffer);
+  res.json({ videoUrl: `/videos/${filename}` });
+});
+```
+
+**Features:** RESTful API, multer file upload, auto-cleanup, temporary storage
+
+**Start:** `cd examples/projects/express-server && npm install && npm start`
+
+---
+
+### 4. [nextjs-app](./examples/projects/nextjs-app) - Modern Full-Stack App
+
+**Best for:** Production web applications, full-stack projects
+
+A complete Next.js application using App Router with server-side conversion via API routes.
+
+```typescript
+// app/api/convert/route.ts
+import { convertGifBuffer } from 'gif2vid';
+
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const file = formData.get('gif') as File;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const mp4Buffer = await convertGifBuffer(buffer);
+  // Save and return URL
+}
+```
+
+**Features:** Next.js App Router, TypeScript, server-side conversion, modern React
+
+**Start:** `cd examples/projects/nextjs-app && npm install && npm run dev`
+
+---
+
+**Choosing the Right Example:**
+
+| Use Case | Example | Why? |
+|----------|---------|------|
+| Quick prototype | standalone-unpkg | No build step, instant setup |
+| Production web app | web-worker | Non-blocking, smooth UX |
+| Backend API | express-server | Server resources, universal compatibility |
+| Full-stack app | nextjs-app | Modern stack, optimized builds |
+
+**Common Features in All Examples:**
+- File selection UI with drag & drop
+- Included test GIF for immediate testing
+- Conversion statistics (time, file sizes)
+- Video preview player
+- Download functionality
+- Modern, responsive design
+
+See [examples/projects/README.md](./examples/projects/README.md) for detailed setup instructions and deployment guides.
+
 ### Browser Builds
 
 gif2vid provides two browser builds to suit different use cases:
