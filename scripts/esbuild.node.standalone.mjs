@@ -21,6 +21,31 @@ console.log('  WASM binary size:', (wasmBinary.length / 1024).toFixed(2), 'KB');
 console.log('  Base64 encoded:', (wasmBase64.length / 1024).toFixed(2), 'KB');
 
 // ============================================================================
+// Plugin to stub web version of h264-mp4-encoder (not needed in Node.js)
+// ============================================================================
+const stubWebH264EncoderPlugin = {
+  name: 'stub-web-h264-encoder',
+  setup(build) {
+    // Stub out the web version of h264-mp4-encoder (Node.js only needs .node.js version)
+    build.onResolve({ filter: /h264-mp4-encoder\.web\.js$/ }, (args) => {
+      return { path: args.path, namespace: 'h264-encoder-web-stub' };
+    });
+
+    build.onLoad({ filter: /.*/, namespace: 'h264-encoder-web-stub' }, () => {
+      return {
+        contents: `
+          // Web version of h264-mp4-encoder is not needed in Node.js
+          // Node.js uses the .node.js version
+          export default { createH264MP4Encoder: () => { throw new Error('h264-mp4-encoder web version should not be used in Node.js'); } };
+          export const createH264MP4Encoder = () => { throw new Error('h264-mp4-encoder web version should not be used in Node.js'); };
+        `,
+        loader: 'js',
+      };
+    });
+  },
+};
+
+// ============================================================================
 // Plugin to inline WASM loader with embedded binary
 // ============================================================================
 const inlineWasmPlugin = {
@@ -104,7 +129,7 @@ await esbuild.build({
   platform: 'node',
   outfile: 'lib/index.js',
   external: ['node:*'],
-  plugins: [inlineWasmPlugin],
+  plugins: [stubWebH264EncoderPlugin, inlineWasmPlugin],
   banner: {
     js: `/**
  * gif2vid - Standalone Node.js Bundle
@@ -129,7 +154,7 @@ await esbuild.build({
   platform: 'node',
   outfile: 'lib/cli.js',
   external: ['node:*'],
-  plugins: [inlineWasmPlugin],
+  plugins: [stubWebH264EncoderPlugin, inlineWasmPlugin],
 });
 
 const stats = readFileSync('lib/index.js');

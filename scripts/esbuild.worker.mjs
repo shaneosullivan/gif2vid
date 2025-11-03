@@ -139,6 +139,21 @@ workerBundle = workerBundle.replace(/import\.meta\.url/g, 'self.location.href');
 workerBundle = workerBundle.replace(/import_meta\.url/g, 'self.location.href');
 workerBundle = workerBundle.replace(/import_meta2\.url/g, 'self.location.href');
 
+// CRITICAL: Replace dynamic WASM imports with stub since HME is prepended
+// Pattern 1: await (await import(wasmUrl).then((m) => m.default))()
+// This is used in webcodecs.ts and needs to be replaced with a stub
+workerBundle = workerBundle.replace(
+  /await \(await import\(wasmUrl\)\.then\(\(m\) => m\.default\)\)\(\)/g,
+  '(function() { throw new Error("WASM module should not be dynamically imported in worker bundle - this is a bug"); })()'
+);
+
+// Pattern 2: await import(wasmPath).then((m) => m.default)
+// This is used in index.ts for Node.js path, should also be stubbed
+workerBundle = workerBundle.replace(
+  /await import\(wasmPath\)\.then\(\(m\) => m\.default\)/g,
+  '(function() { throw new Error("WASM module should not be dynamically imported in worker bundle - this is a bug"); })'
+);
+
 // ============================================================================
 // STEP 4: Combine h264-encoder + worker bundle
 // ============================================================================

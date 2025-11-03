@@ -1,90 +1,23 @@
+#!/usr/bin/env node
 /**
- * ES Module Browser Bundle Builder for gif2vid
+ * Browser ESM Bundle Builder with Embedded WASM
  *
- * This script creates an ES module browser bundle that can be imported by
- * modern build tools (webpack, vite, rollup, etc.) or used directly in browsers
- * that support ES modules.
- *
- * ## Why Two Browser Builds?
- *
- * 1. **ES Module Build** (lib/browser.js) - THIS FILE
- *    - For developers using modern build tools (webpack, vite, rollup, etc.)
- *    - Supports tree-shaking for smaller final bundles
- *    - Requires build step or native ES module support
- *    - Usage: import { convertGifBuffer } from 'gif2vid'
- *    - Note: h264-mp4-encoder must be loaded separately
- *
- * 2. **Standalone Build** (lib/browser-script.js)
- *    - For simple HTML pages with no build step
- *    - Single file with ALL dependencies bundled
- *    - Usage: <script> tag then window.gif2vid.convertGifBuffer()
- *    - See: esbuild.browser.standalone.mjs
- *
- * ## How This Build Works
- *
- * 1. **Bundle with ESM format**: Creates an ES module that can be imported
- *    by other modules. Uses import/export syntax.
- *
- * 2. **Stub Node.js imports**: Replaces node:path, node:fs, etc. with empty
- *    stubs since browser code doesn't need them. The source code checks for
- *    the browser environment and only uses these in Node.js.
- *
- * 3. **Preserve import.meta**: Unlike the standalone build, ES modules support
- *    import.meta.url natively, so no special handling is needed. The browser
- *    will automatically provide the correct URL for WASM path resolution.
- *
- * 4. **External dependencies**: h264-mp4-encoder is NOT bundled here. Developers
- *    must load it separately because it requires global scope to set window.HME.
- *
- * ## Usage Examples
- *
- * ### With a build tool (webpack, vite, etc.)
- * ```javascript
- * import { convertGifBuffer } from 'gif2vid';
- *
- * // Note: You'll need to ensure h264-mp4-encoder is loaded
- * const mp4Buffer = await convertGifBuffer(gifBuffer);
- * ```
- *
- * ### Direct in browser (modern browsers with ES module support)
- * ```html
- * <!-- Load h264-mp4-encoder first (required for optimization) -->
- * <script src="node_modules/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js"></script>
- *
- * <!-- Import and use the module -->
- * <script type="module">
- *   import { convertGifBuffer } from './lib/browser.js';
- *   const mp4Buffer = await convertGifBuffer(gifBuffer);
- * </script>
- * ```
- *
- * ## Differences from Standalone Build
- *
- * | Feature                  | ES Module Build (this) | Standalone Build          |
- * |--------------------------|------------------------|---------------------------|
- * | Format                   | ESM                    | IIFE                      |
- * | Import style             | import/export          | window.gif2vid            |
- * | Build tool required      | Recommended            | No                        |
- * | h264-mp4-encoder bundled | No (external)          | Yes (embedded)            |
- * | File size                | Smaller                | Larger                    |
- * | Tree-shaking support     | Yes                    | No                        |
- * | import.meta support      | Native                 | Polyfilled                |
+ * This creates an ES module for browsers with WASM and h264-mp4-encoder embedded inline.
+ * Works with modern build tools (webpack, vite, rollup, Next.js, etc.)
  */
 
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import * as esbuild from 'esbuild';
 
-// ============================================================================
-// STEP 1: Clean and recreate the browser output directory
-// ============================================================================
-// This ensures a clean build with no leftover files from previous builds
+// Ensure the output directory exists
 try {
-  rmSync('lib/browser', { recursive: true, force: true });
+  mkdirSync('lib', { recursive: true });
 } catch {}
-mkdirSync('lib/browser', { recursive: true });
+
+console.log('Building browser bundle with embedded WASM...');
 
 // ============================================================================
-// STEP 2: Bundle the TypeScript source into an ES module
+// STEP 1: Bundle with ESM format
 // ============================================================================
 await esbuild.build({
   entryPoints: ['src/index.ts'],
@@ -92,51 +25,96 @@ await esbuild.build({
   format: 'esm',
   target: 'es2020',
   platform: 'browser',
-  outfile: 'lib/browser.js',
-
-  // Plugin to stub out Node.js built-in modules
-  // The source code uses these imports but checks for the browser environment
-  // before calling them, so it's safe to replace them with empty stubs
+  outfile: 'lib/browser.temp.js',
   plugins: [
     {
       name: 'ignore-node-modules',
       setup(build) {
-        // Intercept node: imports and replace with empty modules
-        // This prevents esbuild from trying to bundle Node.js built-ins
+        // Stub out node: imports for browser
         build.onResolve({ filter: /^node:/ }, (args) => {
           return { path: args.path, namespace: 'node-stub' };
         });
 
-        // Also stub bare module names like "path", "fs", "crypto", "module"
-        // These come from h264-mp4-encoder.node.js being analyzed by esbuild
         build.onResolve({ filter: /^(path|fs|crypto|module)$/ }, (args) => {
           return { path: args.path, namespace: 'node-stub' };
         });
 
-        // Provide empty stub implementations for Node.js modules
-        // These functions will never be called in browser environments
-        // because the source code checks `typeof window` first
         build.onLoad({ filter: /.*/, namespace: 'node-stub' }, () => {
           return {
-            contents:
-              'export default {}; export const join = () => {}; export const stat = () => {}; export const readFile = () => {}; export const writeFile = () => {}; export const unlink = () => {}; export const exec = () => {}; export const promisify = () => {}; export const tmpdir = () => {}; export const readFileSync = () => {}; export const createRequire = () => {};',
+            contents: `
+            export default {};
+            export const join = () => {};
+            export const dirname = () => {};
+            export const exec = () => {};
+            export const promisify = () => {};
+            export const writeFile = () => {};
+            export const unlink = () => {};
+            export const tmpdir = () => {};
+            export const readFileSync = () => {};
+            export const createRequire = () => {};
+          `,
             loader: 'js',
           };
         });
       },
     },
     {
-      name: 'stub-h264-node-encoder',
+      name: 'replace-wasm-loader-import',
       setup(build) {
-        // Intercept .node.js imports to prevent bundling Node.js-specific code
+        // Replace dynamic WASM imports with embedded module
+        build.onResolve({ filter: /gif2vid-web\.js$/ }, (args) => {
+          return { path: args.path, namespace: 'wasm-loader-stub' };
+        });
+        build.onLoad({ filter: /.*/, namespace: 'wasm-loader-stub' }, () => {
+          return {
+            contents: `
+            // Returns the embedded WASM module creator
+            export default function() {
+              if (typeof __gif2vidCreateModule !== 'undefined') {
+                return __gif2vidCreateModule;
+              }
+              throw new Error('__gif2vidCreateModule not found');
+            }
+          `,
+            loader: 'js',
+          };
+        });
+      },
+    },
+    {
+      name: 'replace-h264-encoder-import',
+      setup(build) {
         build.onResolve({ filter: /h264-mp4-encoder\.node\.js/ }, (args) => {
           return { path: args.path, namespace: 'h264-encoder-node-stub' };
         });
 
-        build.onLoad({ filter: /.*/, namespace: 'h264-encoder-node-stub' }, () => {
-          // Return empty stub for Node.js encoder (not used in browser)
+        build.onLoad(
+          { filter: /.*/, namespace: 'h264-encoder-node-stub' },
+          () => {
+            return {
+              contents: `export default {}; export const createH264MP4Encoder = () => {};`,
+              loader: 'js',
+            };
+          },
+        );
+
+        build.onResolve({ filter: /h264-mp4-encoder/ }, (args) => {
+          return { path: args.path, namespace: 'h264-encoder-stub' };
+        });
+
+        build.onLoad({ filter: /.*/, namespace: 'h264-encoder-stub' }, () => {
           return {
-            contents: `export default {}; export const createH264MP4Encoder = () => {};`,
+            contents: `
+            // Access the embedded HME library
+            const getHME = () => {
+              if (typeof __gif2vidHME !== 'undefined') {
+                return __gif2vidHME;
+              }
+              throw new Error('HME not found - should be embedded in bundle');
+            };
+            export default getHME();
+            export const createH264MP4Encoder = getHME().createH264MP4Encoder;
+          `,
             loader: 'js',
           };
         });
@@ -146,24 +124,112 @@ await esbuild.build({
 });
 
 // ============================================================================
-// Build complete!
+// STEP 2: Read dependencies
 // ============================================================================
-console.log('✓ ES module browser bundle created successfully');
+const h264Encoder = readFileSync(
+  'node_modules/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js',
+  'utf-8',
+);
+
+const wasmBinary = readFileSync('converter/wasm/gif2vid-web.wasm');
+const wasmBase64 = wasmBinary.toString('base64');
+
+let wasmLoader = readFileSync('converter/wasm/gif2vid-web.js', 'utf-8');
+
+// Modify WASM loader to use embedded binary
+wasmLoader = wasmLoader.replace(
+  /return new URL\("gif2vid-web\.wasm",import\.meta\.url\)\.href/g,
+  'return "embedded.wasm"',
+);
+wasmLoader = wasmLoader.replace(/import\.meta\.url/g, 'location.href');
+wasmLoader = wasmLoader.replace(
+  /var wasmBinary;/g,
+  'var wasmBinary=__gif2vidWasmBinary;',
+);
+wasmLoader = wasmLoader.replace(
+  /async function instantiateAsync\(binary,binaryFile,imports\)\{/g,
+  'async function instantiateAsync(binary,binaryFile,imports){if(binary){try{var instance=await WebAssembly.instantiate(binary,imports);return instance}catch(reason){err(`failed to instantiate embedded wasm: ${reason}`);abort(reason)}}',
+);
+wasmLoader = wasmLoader.replace(
+  /if\(!binary\)\{try\{var response=fetch/g,
+  'if(false && !binary){try{var response=fetch',
+);
+
+// Remove the export statement - we'll access the function directly
+wasmLoader = wasmLoader.replace(
+  /export default createGif2VidModule;/g,
+  '',
+);
+
+// ============================================================================
+// STEP 3: Read and modify the bundled code
+// ============================================================================
+let bundle = readFileSync('lib/browser.temp.js', 'utf-8');
+
+// CRITICAL: Remove any Node.js WASM loader that got bundled
+// The bundle might contain gif2vid-node.js code which also has createGif2VidModule
+// We need to rename or remove it to avoid conflicts
+bundle = bundle.replace(
+  /\/\/ converter\/wasm\/gif2vid-node\.js[\s\S]*?async function createGif2VidModule/g,
+  '// converter/wasm/gif2vid-node.js (removed)\nasync function __REMOVED_createGif2VidModule_NodeVersion',
+);
+
+// Replace import.meta references
+bundle = bundle.replace(/import\.meta\.dirname/g, '""');
+bundle = bundle.replace(/import_meta\.dirname/g, '""');
+bundle = bundle.replace(/import\.meta\.url/g, 'location.href');
+bundle = bundle.replace(/import_meta\.url/g, 'location.href');
+bundle = bundle.replace(/import_meta2\.url/g, 'location.href');
+
+// Replace dynamic WASM imports with embedded module reference
+bundle = bundle.replace(
+  /await \(await import\(wasmUrl\)\.then\(\(m\) => m\.default\)\)\(\)/g,
+  'await __gif2vidCreateModule()',
+);
+bundle = bundle.replace(
+  /await import\(wasmPath\)\.then\(\(m\) => m\.default\)/g,
+  '__gif2vidCreateModule',
+);
+
+// ============================================================================
+// STEP 4: Combine everything
+// ============================================================================
+const finalBundle = `// h264-mp4-encoder library
+${h264Encoder}
+
+// Embedded WASM binary
+const __gif2vidWasmBinary = (function() {
+  const wasmBase64 = '${wasmBase64}';
+  const binaryString = atob(wasmBase64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+})();
+
+// WASM loader
+${wasmLoader}
+const __gif2vidCreateModule = createGif2VidModule;
+
+// HME reference
+const __gif2vidHME = HME;
+
+// Main module
+${bundle}
+`;
+
+// ============================================================================
+// STEP 5: Write output
+// ============================================================================
+writeFileSync('lib/browser.js', finalBundle);
+
+try {
+  unlinkSync('lib/browser.temp.js');
+} catch {}
+
+const finalSize = (readFileSync('lib/browser.js').length / 1024 / 1024).toFixed(2);
+
+console.log('✓ Browser bundle created successfully');
 console.log('  Output: lib/browser.js');
-console.log('');
-console.log('  Usage with build tools:');
-console.log('    import { convertGifBuffer } from "gif2vid";');
-console.log('');
-console.log('  Usage in browser (native ES modules):');
-console.log('    <script type="module">');
-console.log('      import { convertGifBuffer } from "./lib/browser.js";');
-console.log('    </script>');
-console.log('');
-console.log('  ⚠️  Important: h264-mp4-encoder must be loaded separately');
-console.log(
-  '    <script src="node_modules/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js"></script>',
-);
-console.log('');
-console.log(
-  '  💡 For a single-file solution, use: npm run build:browser:standalone',
-);
+console.log(`  Size: ${finalSize} MB`);

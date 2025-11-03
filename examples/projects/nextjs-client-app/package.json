@@ -1,0 +1,26 @@
+{
+  "name": "gif2vid-nextjs-client-app",
+  "version": "1.0.0",
+  "description": "gif2vid Next.js client-side example - converts GIFs in the browser without API calls",
+  "scripts": {
+    "dev": "next dev -p 3338",
+    "devkill": "lsof -ti:3338 | xargs kill -9 2>/dev/null || echo 'No process found on port 3338'",
+    "build": "next build",
+    "start": "next start -p 3338"
+  },
+  "dependencies": {
+    "gif2vid": "file:../../..",
+    "h264-mp4-encoder": "^1.0.12",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.0"
+  }
+}
