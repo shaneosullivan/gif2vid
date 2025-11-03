@@ -36,7 +36,7 @@
   ],
   "scripts": {
     "build": "npm run build:wasm && npm run build:browser && npm run build:worker && npm run build:node && npm run build:browser:standalone",
-    "build:browser": "node scripts/esbuild.browser.mjs && tsc src/index.ts --declaration --emitDeclarationOnly --outDir lib/browser --module esnext --moduleResolution bundler",
+    "build:browser": "node scripts/esbuild.browser.mjs",
     "build:browser:standalone": "node scripts/esbuild.browser.standalone.mjs",
     "build:worker": "node scripts/esbuild.worker.mjs",
     "build:node": "node scripts/esbuild.node.standalone.mjs",

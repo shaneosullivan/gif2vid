@@ -7,14 +7,14 @@
  *
  * ## Why Two Browser Builds?
  *
- * 1. **ES Module Build** (lib/browser/index.js) - THIS FILE
+ * 1. **ES Module Build** (lib/browser.js) - THIS FILE
  *    - For developers using modern build tools (webpack, vite, rollup, etc.)
  *    - Supports tree-shaking for smaller final bundles
  *    - Requires build step or native ES module support
  *    - Usage: import { convertGifBuffer } from 'gif2vid'
  *    - Note: h264-mp4-encoder must be loaded separately
  *
- * 2. **Standalone Build** (lib/browser/gif2vid.standalone.js)
+ * 2. **Standalone Build** (lib/browser-script.js)
  *    - For simple HTML pages with no build step
  *    - Single file with ALL dependencies bundled
  *    - Usage: <script> tag then window.gif2vid.convertGifBuffer()
@@ -53,7 +53,7 @@
  *
  * <!-- Import and use the module -->
  * <script type="module">
- *   import { convertGifBuffer } from './lib/browser/index.js';
+ *   import { convertGifBuffer } from './lib/browser.js';
  *   const mp4Buffer = await convertGifBuffer(gifBuffer);
  * </script>
  * ```
@@ -92,7 +92,7 @@ await esbuild.build({
   format: 'esm',
   target: 'es2020',
   platform: 'browser',
-  outfile: 'lib/browser/index.js',
+  outfile: 'lib/browser.js',
 
   // Plugin to stub out Node.js built-in modules
   // The source code uses these imports but checks for the browser environment
@@ -149,14 +149,14 @@ await esbuild.build({
 // Build complete!
 // ============================================================================
 console.log('✓ ES module browser bundle created successfully');
-console.log('  Output: lib/browser/index.js');
+console.log('  Output: lib/browser.js');
 console.log('');
 console.log('  Usage with build tools:');
 console.log('    import { convertGifBuffer } from "gif2vid";');
 console.log('');
 console.log('  Usage in browser (native ES modules):');
 console.log('    <script type="module">');
-console.log('      import { convertGifBuffer } from "./lib/browser/index.js";');
+console.log('      import { convertGifBuffer } from "./lib/browser.js";');
 console.log('    </script>');
 console.log('');
 console.log('  ⚠️  Important: h264-mp4-encoder must be loaded separately');

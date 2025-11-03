@@ -7,7 +7,7 @@
  *
  * ## Why Two Browser Builds?
  *
- * 1. **ES Module Build** (lib/browser/index.js)
+ * 1. **ES Module Build** (lib/browser.js)
  *    - For developers using modern build tools (webpack, vite, rollup, etc.)
  *    - Requires separate loading of h264-mp4-encoder
  *    - Smaller file size, tree-shakeable
