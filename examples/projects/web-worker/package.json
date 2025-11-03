@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "build": "esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser --log-override:direct-eval=silent",
-    "dev": "npm run build && python3 -m http.server 8081",
+    "dev": "npm run build && ./startServer.sh",
+    "devkill": "lsof -ti:3335 | xargs kill -9 2>/dev/null || echo 'No process found on port 3335'",
     "start": "./startServer.sh"
+  },
+  "dependencies": {
+    "gif2vid": "file:../../.."
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
     "typescript": "^5.9.0"
-  },
-  "dependencies": {
-    "gif2vid": "file:../../.."
   }
 }

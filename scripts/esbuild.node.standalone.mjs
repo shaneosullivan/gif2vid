@@ -27,9 +27,12 @@ const inlineWasmPlugin = {
   name: 'inline-wasm',
   setup(build) {
     // Intercept imports of the WASM loader
-    build.onResolve({ filter: /\/converter\/wasm\/gif2vid-node\.js$/ }, (args) => {
-      return { path: args.path, namespace: 'inline-wasm' };
-    });
+    build.onResolve(
+      { filter: /\/converter\/wasm\/gif2vid-node\.js$/ },
+      (args) => {
+        return { path: args.path, namespace: 'inline-wasm' };
+      },
+    );
 
     build.onLoad({ filter: /.*/, namespace: 'inline-wasm' }, () => {
       // Read the WASM loader code
@@ -39,45 +42,45 @@ const inlineWasmPlugin = {
       // Replace the wasmBinary variable declaration with our embedded binary
       wasmLoader = wasmLoader.replace(
         /var wasmBinary;/g,
-        `var wasmBinary = Buffer.from('${wasmBase64}', 'base64');`
+        `var wasmBinary = Buffer.from('${wasmBase64}', 'base64');`,
       );
 
       // Replace the new URL() call with an empty string since we have wasmBinary embedded
       // The return value needs to be a string, not null, because it's used in string operations
       wasmLoader = wasmLoader.replace(
         /new URL\("gif2vid-node\.wasm",import\.meta\.url\)\.href/g,
-        '""'
+        '""',
       );
 
       // Fix createRequire call - replace the entire import and call with a stub
       // We don't need require since the WASM binary is embedded
       wasmLoader = wasmLoader.replace(
         /const\{createRequire\}=await import\("module"\);var require=createRequire\(import\.meta\.url\)/g,
-        'var require=(id)=>{return{}}'
+        'var require=(id)=>{return{}}',
       );
 
       // Stub out fs since we have the WASM binary embedded
       wasmLoader = wasmLoader.replace(
         /var fs=require\("fs"\);/g,
-        'var fs={readFileSync:()=>{throw new Error("fs not needed - WASM is embedded")}};'
+        'var fs={readFileSync:()=>{throw new Error("fs not needed - WASM is embedded")}};',
       );
 
       // Remove the entire ENVIRONMENT_IS_NODE block that tries to use fs
       // We don't need it since the WASM binary is embedded
       wasmLoader = wasmLoader.replace(
         /if\(_scriptName\.startsWith\("file:"\)\)\{scriptDirectory=require[^}]+\}/g,
-        ''
+        '',
       );
 
       // Stub out readBinary and readAsync since we have the binary embedded
       wasmLoader = wasmLoader.replace(
         /readBinary=filename=>\{[^}]+\};/g,
-        'readBinary=()=>{throw new Error("readBinary not needed")};'
+        'readBinary=()=>{throw new Error("readBinary not needed")};',
       );
 
       wasmLoader = wasmLoader.replace(
         /readAsync=async\(filename,binary=true\)=>\{[^}]+\};/g,
-        'readAsync=async()=>{throw new Error("readAsync not needed")};'
+        'readAsync=async()=>{throw new Error("readAsync not needed")};',
       );
 
       return {
@@ -132,20 +135,13 @@ await esbuild.build({
 const stats = readFileSync('lib/index.js');
 const cliStats = readFileSync('lib/cli.js');
 console.log('✓ Standalone Node.js bundles created successfully');
-console.log('  Library: lib/index.js -', (stats.length / 1024 / 1024).toFixed(2), 'MB');
-console.log('  CLI:     lib/cli.js -', (cliStats.length / 1024 / 1024).toFixed(2), 'MB');
-console.log('');
-console.log('  🎉 SELF-CONTAINED NODE.JS BUILD!');
-console.log('  All WASM files embedded - works anywhere!');
-console.log('');
-console.log('  Usage:');
-console.log('    const { convertGifBuffer } = require(\'gif2vid\');');
-console.log('    // or');
-console.log('    import { convertGifBuffer } from \'gif2vid\';');
-console.log('    // CLI:');
-console.log('    gif2vid input.gif output.mp4');
-console.log('');
-console.log('  Features:');
-console.log('    • Zero configuration required');
-console.log('    • Works with Next.js, Remix, serverless, Docker');
-console.log('    • No file path issues - everything embedded');
+console.log(
+  '  Library: lib/index.js -',
+  (stats.length / 1024 / 1024).toFixed(2),
+  'MB',
+);
+console.log(
+  '  CLI:     lib/cli.js -',
+  (cliStats.length / 1024 / 1024).toFixed(2),
+  'MB',
+);

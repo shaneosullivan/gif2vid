@@ -35,7 +35,7 @@ coverage/
 logs/
 *.log
 
-# Temporary files
+# Temporary files 
 tmp/
 temp/
 *.tmp

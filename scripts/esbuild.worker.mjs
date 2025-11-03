@@ -19,7 +19,6 @@
  * 3. **Optimized for workers**: Uses self.location.href instead of import.meta.url
  *    and properly handles the Web Worker global scope.
  */
-
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import * as esbuild from 'esbuild';
 
@@ -48,6 +47,12 @@ await esbuild.build({
         build.onResolve({ filter: /^node:/ }, (args) => {
           return { path: args.path, namespace: 'node-stub' };
         });
+
+        // Also stub bare module names like "path", "fs", "crypto", "module"
+        build.onResolve({ filter: /^(path|fs|crypto|module)$/ }, (args) => {
+          return { path: args.path, namespace: 'node-stub' };
+        });
+
         build.onLoad({ filter: /.*/, namespace: 'node-stub' }, () => {
           return {
             contents: `
@@ -59,6 +64,8 @@ await esbuild.build({
             export const writeFile = () => {};
             export const unlink = () => {};
             export const tmpdir = () => {};
+            export const readFileSync = () => {};
+            export const createRequire = () => {};
           `,
             loader: 'js',
           };
@@ -68,12 +75,27 @@ await esbuild.build({
     {
       name: 'replace-h264-encoder-import',
       setup(build) {
-        // Intercept imports of h264-mp4-encoder and replace with stub
-        // that returns the globally available self.HME
-        // This prevents bundling h264-mp4-encoder twice (once prepended, once bundled)
+        // Intercept .node.js imports first to prevent them from being processed
+        build.onResolve({ filter: /h264-mp4-encoder\.node\.js/ }, (args) => {
+          return { path: args.path, namespace: 'h264-encoder-node-stub' };
+        });
+
+        build.onLoad(
+          { filter: /.*/, namespace: 'h264-encoder-node-stub' },
+          () => {
+            // Return empty stub for Node.js encoder (not used in browser/worker)
+            return {
+              contents: `export default {}; export const createH264MP4Encoder = () => {};`,
+              loader: 'js',
+            };
+          },
+        );
+
+        // Then intercept other h264-mp4-encoder imports
         build.onResolve({ filter: /h264-mp4-encoder/ }, (args) => {
           return { path: args.path, namespace: 'h264-encoder-stub' };
         });
+
         build.onLoad({ filter: /.*/, namespace: 'h264-encoder-stub' }, () => {
           return {
             contents: `
@@ -177,12 +199,3 @@ const finalSize = (readFileSync('lib/worker.js').length / 1024 / 1024).toFixed(
 console.log('✓ Worker bundle created successfully');
 console.log('  Output: lib/worker.js');
 console.log(`  Size: ${finalSize} MB`);
-console.log('');
-console.log('  Usage in Web Worker:');
-console.log('    import { convertGifBuffer } from "gif2vid/worker";');
-console.log('');
-console.log('  Features:');
-console.log('    • Pre-built for Web Workers: No build configuration needed');
-console.log('    • H.264 encoding: Includes h264-mp4-encoder for optimization');
-console.log('    • Optimized: Uses hardware acceleration when available');
-console.log('    • WASM fallback: Works without WebCodecs support');

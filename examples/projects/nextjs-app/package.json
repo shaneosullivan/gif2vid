@@ -4,6 +4,7 @@
   "description": "gif2vid Next.js app example",
   "scripts": {
     "dev": "next dev -p 3337",
+    "devkill": "lsof -ti:3337 | xargs kill -9 2>/dev/null || echo 'No process found on port 3337'",
     "build": "next build",
     "start": "next start -p 3337"
   },

@@ -107,13 +107,36 @@ await esbuild.build({
           return { path: args.path, namespace: 'node-stub' };
         });
 
+        // Also stub bare module names like "path", "fs", "crypto", "module"
+        // These come from h264-mp4-encoder.node.js being analyzed by esbuild
+        build.onResolve({ filter: /^(path|fs|crypto|module)$/ }, (args) => {
+          return { path: args.path, namespace: 'node-stub' };
+        });
+
         // Provide empty stub implementations for Node.js modules
         // These functions will never be called in browser environments
         // because the source code checks `typeof window` first
         build.onLoad({ filter: /.*/, namespace: 'node-stub' }, () => {
           return {
             contents:
-              'export default {}; export const join = () => {}; export const stat = () => {}; export const readFile = () => {}; export const writeFile = () => {}; export const unlink = () => {}; export const exec = () => {}; export const promisify = () => {}; export const tmpdir = () => {};',
+              'export default {}; export const join = () => {}; export const stat = () => {}; export const readFile = () => {}; export const writeFile = () => {}; export const unlink = () => {}; export const exec = () => {}; export const promisify = () => {}; export const tmpdir = () => {}; export const readFileSync = () => {}; export const createRequire = () => {};',
+            loader: 'js',
+          };
+        });
+      },
+    },
+    {
+      name: 'stub-h264-node-encoder',
+      setup(build) {
+        // Intercept .node.js imports to prevent bundling Node.js-specific code
+        build.onResolve({ filter: /h264-mp4-encoder\.node\.js/ }, (args) => {
+          return { path: args.path, namespace: 'h264-encoder-node-stub' };
+        });
+
+        build.onLoad({ filter: /.*/, namespace: 'h264-encoder-node-stub' }, () => {
+          // Return empty stub for Node.js encoder (not used in browser)
+          return {
+            contents: `export default {}; export const createH264MP4Encoder = () => {};`,
             loader: 'js',
           };
         });

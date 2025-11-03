@@ -13,7 +13,7 @@
  *    - Smaller file size, tree-shakeable
  *    - Usage: import { convertGifBuffer } from 'gif2vid'
  *
- * 2. **Standalone Build** (lib/browser.js) - THIS FILE
+ * 2. **Standalone Build** (lib/browser-script.js) - THIS FILE
  *    - For simple HTML pages with no build step
  *    - Single file with ALL dependencies bundled (including h264-mp4-encoder)
  *    - Larger file size, but zero external dependencies
@@ -89,6 +89,13 @@ await esbuild.build({
         build.onResolve({ filter: /^node:/ }, (args) => {
           return { path: args.path, namespace: 'node-stub' };
         });
+
+        // Also stub bare module names like "path", "fs", "crypto", "module"
+        // These come from h264-mp4-encoder.node.js being analyzed by esbuild
+        build.onResolve({ filter: /^(path|fs|crypto|module)$/ }, (args) => {
+          return { path: args.path, namespace: 'node-stub' };
+        });
+
         build.onLoad({ filter: /.*/, namespace: 'node-stub' }, () => {
           return {
             contents: `
@@ -100,6 +107,8 @@ await esbuild.build({
             export const writeFile = () => {};
             export const unlink = () => {};
             export const tmpdir = () => {};
+            export const readFileSync = () => {};
+            export const createRequire = () => {};
           `,
             loader: 'js',
           };
@@ -137,9 +146,28 @@ await esbuild.build({
         // Intercept imports of h264-mp4-encoder and replace with stub
         // that returns the globally available window.HME
         // This prevents bundling h264-mp4-encoder twice (once prepended, once bundled)
+
+        // Important: Intercept .node.js imports first to prevent them from being processed
+        build.onResolve({ filter: /h264-mp4-encoder\.node\.js/ }, (args) => {
+          return { path: args.path, namespace: 'h264-encoder-node-stub' };
+        });
+
+        build.onLoad(
+          { filter: /.*/, namespace: 'h264-encoder-node-stub' },
+          () => {
+            // Return empty stub for Node.js encoder (not used in browser)
+            return {
+              contents: `export default {}; export const createH264MP4Encoder = () => {};`,
+              loader: 'js',
+            };
+          },
+        );
+
+        // Then catch all other h264-mp4-encoder imports
         build.onResolve({ filter: /h264-mp4-encoder/ }, (args) => {
           return { path: args.path, namespace: 'h264-encoder-stub' };
         });
+
         build.onLoad({ filter: /.*/, namespace: 'h264-encoder-stub' }, () => {
           return {
             contents: `
@@ -334,7 +362,7 @@ ${moduleExposer}
 // ============================================================================
 // STEP 6: Write the final bundle and clean up
 // ============================================================================
-writeFileSync('lib/browser.js', standaloneBundle);
+writeFileSync('lib/browser-script.js', standaloneBundle);
 
 // Clean up the temporary bundle file
 try {
@@ -342,33 +370,10 @@ try {
 } catch {}
 
 // Success! Print usage instructions
-const finalSize = (
-  readFileSync('lib/browser.js').length /
-  1024 /
-  1024
-).toFixed(2);
+const finalSize = (readFileSync('lib/browser-script.js').length / 1024 / 1024).toFixed(
+  2,
+);
 
 console.log('✓ Standalone browser bundle created successfully');
-console.log('  Output: lib/browser.js');
+console.log('  Output: lib/browser-script.js');
 console.log(`  Size: ${finalSize} MB`);
-console.log('');
-console.log('  🎉 SINGLE FILE DEPLOYMENT!');
-console.log(
-  '  The WASM binary is embedded as base64 - no external files needed!',
-);
-console.log('');
-console.log('  Usage in HTML:');
-console.log('    <script src="lib/browser.js"></script>');
-console.log('    <script>');
-console.log('      const { convertGifBuffer } = window.gif2vid;');
-console.log('      // Use convertGifBuffer, convertFile, or convertFrames');
-console.log('    </script>');
-console.log('');
-console.log('  Features:');
-console.log('    • True single file deployment (WASM embedded as base64)');
-console.log('    • Zero configuration required');
-console.log('    • H.264 encoding: Includes h264-mp4-encoder for optimization');
-console.log(
-  '    • WebCodecs support: Automatically uses browser optimization when available',
-);
-console.log('    • WASM fallback: Works even without WebCodecs support');

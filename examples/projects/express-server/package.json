@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "devkill": "lsof -ti:3336 | xargs kill -9 2>/dev/null || echo 'No process found on port 3336'"
   },
   "dependencies": {
     "express": "^4.21.2",

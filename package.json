@@ -14,12 +14,12 @@
   },
   "type": "module",
   "main": "./lib/index.js",
-  "browser": "./lib/browser.js",
+  "browser": "./lib/browser-script.js",
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "browser": "./lib/browser.js",
+      "browser": "./lib/browser-script.js",
       "default": "./lib/index.js"
     },
     "./worker": {
@@ -36,11 +36,12 @@
   ],
   "scripts": {
     "build": "npm run build:wasm && npm run build:browser && npm run build:worker && npm run build:node && npm run build:browser:standalone",
-    "build:browser": "node esbuild.browser.mjs && tsc src/index.ts --declaration --emitDeclarationOnly --outDir lib/browser --module esnext --moduleResolution bundler",
-    "build:browser:standalone": "node esbuild.browser.standalone.mjs",
-    "build:worker": "node esbuild.worker.mjs",
-    "build:node": "node esbuild.node.standalone.mjs",
+    "build:browser": "node scripts/esbuild.browser.mjs && tsc src/index.ts --declaration --emitDeclarationOnly --outDir lib/browser --module esnext --moduleResolution bundler",
+    "build:browser:standalone": "node scripts/esbuild.browser.standalone.mjs",
+    "build:worker": "node scripts/esbuild.worker.mjs",
+    "build:node": "node scripts/esbuild.node.standalone.mjs",
     "build:wasm": "./scripts/buildConverter.sh",
+    "clean": "rm -rf lib converter/wasm",
     "format": "prettier --experimental-cli --write .",
     "format:wasm": "prettier --experimental-cli --write 'converter/wasm/**/*.js'",
     "lint": "eslint --cache .",
