@@ -12,6 +12,12 @@ fi
 
 PORT=3335
 
+# Copy the test Gif files from the root tests/images directory
+# to the files directory served by the web server
+echo "Copying test GIF files..."
+mkdir -p files
+cp ../../../tests/images/*.gif files/
+
 echo ""
 echo "Starting HTTP server on port $PORT..."
 echo "Open http://localhost:$PORT in your browser"

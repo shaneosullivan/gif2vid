@@ -350,6 +350,46 @@ export async function encodeFramesWithWasmEncoder(
       const frame = frames[i];
       let frameData = frame.data;
 
+      // Check if frame has any transparency and composite if needed
+      // GIFs support transparency but H.264 video does not
+      let hasTransparency = false;
+      for (let j = 0; j < frame.width * frame.height; j++) {
+        if (frameData[j * 4 + 3] < 255) {
+          hasTransparency = true;
+          break;
+        }
+      }
+
+      if (hasTransparency) {
+        // Only composite if there's actual transparency in the frame
+        const composited = new Uint8Array(frame.width * frame.height * 4);
+        for (let j = 0; j < frame.width * frame.height; j++) {
+          const offset = j * 4;
+          const r = frameData[offset];
+          const g = frameData[offset + 1];
+          const b = frameData[offset + 2];
+          const a = frameData[offset + 3];
+
+          if (a < 255) {
+            const alphaNorm = a / 255; // Normalize alpha to 0-1
+            // Composite onto white background: result = foreground * alpha + background * (1 - alpha)
+            const bgColor = 255; // White background
+            composited[offset] = Math.round(r * alphaNorm + bgColor * (1 - alphaNorm));
+            composited[offset + 1] = Math.round(g * alphaNorm + bgColor * (1 - alphaNorm));
+            composited[offset + 2] = Math.round(b * alphaNorm + bgColor * (1 - alphaNorm));
+            composited[offset + 3] = 255; // Fully opaque
+          } else {
+            // Pixel is fully opaque, copy as-is
+            composited[offset] = r;
+            composited[offset + 1] = g;
+            composited[offset + 2] = b;
+            composited[offset + 3] = a;
+          }
+        }
+        frameData = composited;
+      }
+      // If no transparency, use frameData as-is
+
       // Crop frame data to even dimensions if needed
       if (frame.width !== evenWidth || frame.height !== evenHeight) {
         const croppedData = new Uint8Array(evenWidth * evenHeight * 4);

@@ -1,6 +1,6 @@
 {
   "name": "gif2vid",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Convert GIF animations to optimized MP4 videos. Works in Node.js and browsers with WebCodecs support.",
   "homepage": "https://github.com/shaneosullivan/gif2vid",
   "repository": {

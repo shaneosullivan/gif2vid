@@ -42,6 +42,9 @@ temp/
 
 .last_modified_timestamp
 
+# Ignore all "files" directories in the examples/projects folders
+examples/projects/**/files/
+
 # Next.js
 examples/projects/nextjs-app/.next/
 examples/projects/nextjs-app/next-env.d.ts
