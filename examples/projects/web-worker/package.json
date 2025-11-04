@@ -4,7 +4,7 @@
   "description": "gif2vid web worker example with TypeScript",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/worker.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser --log-override:direct-eval=silent",
+    "build": "node build.mjs",
     "dev": "npm run build && ./startServer.sh",
     "devkill": "lsof -ti:3335 | xargs kill -9 2>/dev/null || echo 'No process found on port 3335'",
     "start": "./startServer.sh"

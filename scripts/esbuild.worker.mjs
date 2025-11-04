@@ -119,53 +119,95 @@ await esbuild.build({
 });
 
 // ============================================================================
-// STEP 2: Read the h264-mp4-encoder library
+// STEP 2: Read dependencies
 // ============================================================================
-// This library provides H.264 video encoding via WebCodecs API.
-// In workers, it will set self.HME
+// h264-mp4-encoder library for video encoding
 const h264Encoder = readFileSync(
   'node_modules/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js',
   'utf-8',
 );
 
+// Read and encode WASM binary as base64
+const wasmBinary = readFileSync('converter/wasm/gif2vid-web.wasm');
+const wasmBase64 = wasmBinary.toString('base64');
+
+// Read and modify WASM loader to use embedded binary
+let wasmLoader = readFileSync('converter/wasm/gif2vid-web.js', 'utf-8');
+wasmLoader = wasmLoader.replace(
+  /return new URL\("gif2vid-web\.wasm",import\.meta\.url\)\.href/g,
+  'return "embedded.wasm"',
+);
+wasmLoader = wasmLoader.replace(/import\.meta\.url/g, 'self.location.href');
+wasmLoader = wasmLoader.replace(
+  /var wasmBinary;/g,
+  'var wasmBinary=__gif2vidWasmBinary;',
+);
+wasmLoader = wasmLoader.replace(
+  /async function instantiateAsync\(binary,binaryFile,imports\)\{/g,
+  'async function instantiateAsync(binary,binaryFile,imports){if(binary){try{var instance=await WebAssembly.instantiate(binary,imports);return instance}catch(reason){err(`failed to instantiate embedded wasm: ${reason}`);abort(reason)}}',
+);
+wasmLoader = wasmLoader.replace(
+  /if\(!binary\)\{try\{var response=fetch/g,
+  'if(false && !binary){try{var response=fetch',
+);
+wasmLoader = wasmLoader.replace(
+  /export default createGif2VidModule;/g,
+  '',
+);
+
 // ============================================================================
-// STEP 3: Read the bundled worker code
+// STEP 3: Read and modify the bundled worker code
 // ============================================================================
 let workerBundle = readFileSync('lib/worker.temp.js', 'utf-8');
 
+// Remove any Node.js WASM loader to avoid conflicts
+workerBundle = workerBundle.replace(
+  /\/\/ converter\/wasm\/gif2vid-node\.js[\s\S]*?async function createGif2VidModule/g,
+  '// converter/wasm/gif2vid-node.js (removed)\nasync function __REMOVED_createGif2VidModule_NodeVersion',
+);
+
 // Fix import.meta.url references for workers
-// In workers, we use self.location.href
 workerBundle = workerBundle.replace(/import\.meta\.url/g, 'self.location.href');
 workerBundle = workerBundle.replace(/import_meta\.url/g, 'self.location.href');
 workerBundle = workerBundle.replace(/import_meta2\.url/g, 'self.location.href');
 
-// CRITICAL: Replace dynamic WASM imports with stub since HME is prepended
-// Pattern 1: await (await import(wasmUrl).then((m) => m.default))()
-// This is used in webcodecs.ts and needs to be replaced with a stub
+// Replace dynamic WASM imports with embedded module reference
 workerBundle = workerBundle.replace(
   /await \(await import\(wasmUrl\)\.then\(\(m\) => m\.default\)\)\(\)/g,
-  '(function() { throw new Error("WASM module should not be dynamically imported in worker bundle - this is a bug"); })()'
+  'await __gif2vidCreateModule()',
 );
-
-// Pattern 2: await import(wasmPath).then((m) => m.default)
-// This is used in index.ts for Node.js path, should also be stubbed
 workerBundle = workerBundle.replace(
   /await import\(wasmPath\)\.then\(\(m\) => m\.default\)/g,
-  '(function() { throw new Error("WASM module should not be dynamically imported in worker bundle - this is a bug"); })'
+  '__gif2vidCreateModule',
 );
 
 // ============================================================================
-// STEP 4: Combine h264-encoder + worker bundle
+// STEP 4: Combine everything
 // ============================================================================
-// The order is critical:
-//   1. h264-encoder: Creates HME variable
-//   2. Export HME to self scope for worker access
-//   3. workerBundle: The worker code that uses gif2vid (which uses self.HME)
-const finalBundle = `${h264Encoder}
+const finalBundle = `// h264-mp4-encoder library
+${h264Encoder}
 
-// Export HME to self scope so it's accessible as self.HME
+// Export HME to self scope
 self.HME = HME;
 
+// Embedded WASM binary
+const __gif2vidWasmBinary = (function() {
+  const wasmBase64 = '${wasmBase64}';
+  const binaryString = atob(wasmBase64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+})();
+
+// WASM module loader
+${wasmLoader}
+
+// Create module function reference
+const __gif2vidCreateModule = createGif2VidModule;
+
+// Main worker code
 ${workerBundle}
 `;
 
