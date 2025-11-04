@@ -1,6 +1,6 @@
 {
   "name": "gif2vid",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Convert GIF animations to optimized MP4 videos. Works in Node.js and browsers with WebCodecs support.",
   "homepage": "https://github.com/shaneosullivan/gif2vid",
   "repository": {
@@ -41,10 +41,11 @@
     "converter/wasm"
   ],
   "scripts": {
-    "build": "npm run build:wasm && npm run build:browser && npm run build:worker && npm run build:node && npm run build:browser:standalone",
+    "build": "npm run build:wasm && npm run build:browser && npm run build:worker && npm run build:node && npm run build:browser:standalone && npm run build:types",
     "build:browser": "node scripts/esbuild.browser.mjs",
     "build:browser:standalone": "node scripts/esbuild.browser.standalone.mjs",
     "build:node": "node scripts/esbuild.node.standalone.mjs",
+    "build:types": "tsc --project tsconfig.declarations.json",
     "build:wasm": "./scripts/buildConverter.sh",
     "build:worker": "node scripts/esbuild.worker.mjs",
     "clean": "rm -rf lib converter/wasm",
