@@ -64,12 +64,47 @@ export function decodeGif(
     canvasBuffer[i + 3] = 0; // A (transparent)
   }
 
+  // Track previous frame for disposal method 3
+  let previousCanvasBuffer: Uint8Array | null = null;
+
   // Decode each frame with proper composition
   for (let i = 0; i < numFrames; i++) {
     const frameInfo = reader.frameInfo(i);
 
+    // Handle disposal method from PREVIOUS frame (before decoding current frame)
+    if (i > 0) {
+      const prevFrameInfo = reader.frameInfo(i - 1);
+
+      // disposal: 0 = unspecified, 1 = do not dispose, 2 = restore to background, 3 = restore to previous
+      if (prevFrameInfo.disposal === 2) {
+        // Restore to background color (transparent/white)
+        const frameX = prevFrameInfo.x || 0;
+        const frameY = prevFrameInfo.y || 0;
+        const frameWidth = prevFrameInfo.width;
+        const frameHeight = prevFrameInfo.height;
+
+        for (let y = frameY; y < frameY + frameHeight && y < height; y++) {
+          for (let x = frameX; x < frameX + frameWidth && x < width; x++) {
+            const idx = (y * width + x) * 4;
+            canvasBuffer[idx] = 255;     // R - white background
+            canvasBuffer[idx + 1] = 255; // G
+            canvasBuffer[idx + 2] = 255; // B
+            canvasBuffer[idx + 3] = 255; // A - fully opaque
+          }
+        }
+      } else if (prevFrameInfo.disposal === 3 && previousCanvasBuffer) {
+        // Restore to previous state
+        canvasBuffer.set(previousCanvasBuffer);
+      }
+      // disposal 1 (do not dispose) and 0 (unspecified) leave the canvas as-is
+    }
+
+    // Save canvas state before decoding (for disposal method 3)
+    if (frameInfo.disposal === 3) {
+      previousCanvasBuffer = new Uint8Array(canvasBuffer);
+    }
+
     // Decode frame directly onto the canvas buffer
-    // This handles frame composition automatically
     reader.decodeAndBlitFrameRGBA(i, canvasBuffer);
 
     // Create a copy of the current canvas state for this frame
@@ -81,28 +116,6 @@ export function decodeGif(
       height,
       width,
     });
-
-    // Handle disposal method for next frame
-    // disposal: 0 = unspecified, 1 = do not dispose, 2 = restore to background, 3 = restore to previous
-    if (frameInfo.disposal === 2) {
-      // Restore to background color (transparent)
-      const frameX = frameInfo.x || 0;
-      const frameY = frameInfo.y || 0;
-      const frameWidth = frameInfo.width;
-      const frameHeight = frameInfo.height;
-
-      for (let y = frameY; y < frameY + frameHeight && y < height; y++) {
-        for (let x = frameX; x < frameX + frameWidth && x < width; x++) {
-          const idx = (y * width + x) * 4;
-          canvasBuffer[idx] = 0;
-          canvasBuffer[idx + 1] = 0;
-          canvasBuffer[idx + 2] = 0;
-          canvasBuffer[idx + 3] = 0;
-        }
-      }
-    }
-    // disposal 1 (do not dispose) and 0 (unspecified) leave the canvas as-is for next frame
-    // disposal 3 (restore to previous) is complex and rarely used, treat as disposal 1
   }
 
   return {

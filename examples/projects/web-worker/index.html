@@ -282,8 +282,11 @@
           <button id="testBtn" onclick="testExistingGif('test1.gif')">
             🚀 Load & Convert test1.gif
           </button>
-          <button id="testBtn" onclick="testExistingGif('test2.gif')">
+          <button id="testBtn2" onclick="testExistingGif('test2.gif')">
             🚀 Load & Convert test2.gif
+          </button>
+          <button id="testBtn3" onclick="testExistingGif('test3.gif')">
+            🚀 Load & Convert test3.gif
           </button>
         </div>
         <p class="note">Test with the included sample GIF file</p>
@@ -304,13 +307,21 @@
       const fileInput = document.getElementById('gifFile');
       const workerStatus = document.getElementById('workerStatus');
       const workerStatusText = document.getElementById('workerStatusText');
-      const testBtn = document.getElementById('testBtn');
+      const testBtns = ['testBtn', 'testBtn2', 'testBtn3'].map((id) =>
+        document.getElementById(id),
+      );
 
       let worker;
       let messageId = 0;
       let isWorkerReady = false;
       let currentGifBlob = null;
       let currentGifFilename = 'converted.gif';
+
+      function setTestButtonsDisabled(disabled) {
+        testBtns.forEach((btn) => {
+          btn.disabled = disabled;
+        });
+      }
 
       // Initialize the Web Worker
       function initWorker() {
@@ -324,7 +335,7 @@
             isWorkerReady = true;
             workerStatus.classList.add('ready');
             workerStatusText.textContent = 'Worker ready';
-            testBtn.disabled = false;
+            setTestButtonsDisabled(false);
             log('Worker initialized and ready');
           } else if (type === 'progress') {
             log(message);
@@ -340,17 +351,17 @@
               new Blob([mp4Buffer], { type: 'video/mp4' }),
               currentGifFilename,
             );
-            testBtn.disabled = false;
+            setTestButtonsDisabled(false);
           } else if (type === 'error') {
             log(`✗ Error: ${error}`);
-            testBtn.disabled = false;
+            setTestButtonsDisabled(false);
           }
         });
 
         worker.addEventListener('error', (error) => {
           log(`✗ Worker error: ${error.message}`);
           workerStatusText.textContent = 'Worker error';
-          testBtn.disabled = false;
+          setTestButtonsDisabled(false);
         });
       }
 
@@ -399,7 +410,7 @@
 
         log(`Converting ${filename}...`);
         window.convertStartTime = performance.now();
-        testBtn.disabled = true;
+        setTestButtonsDisabled(true);
 
         // Send the GIF to the worker
         worker.postMessage(
@@ -439,13 +450,13 @@
           await convertGif(new Uint8Array(arrayBuffer), fileName);
         } catch (error) {
           log(`✗ Error loading test file: ${error.message}`);
-          testBtn.disabled = false;
+          setTestButtonsDisabled(false);
         }
       };
 
       // Initialize worker on page load
       initWorker();
-      testBtn.disabled = true;
+      setTestButtonsDisabled(true);
     </script>
   </body>
 </html>
